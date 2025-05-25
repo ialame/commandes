@@ -1,8 +1,6 @@
 package com.pcagrade.order.service;
 
 import com.pcagrade.order.dto.DashboardStats;
-import com.pcagrade.order.entity.OrderStatus;
-import com.pcagrade.order.entity.PriorityLevel;
 import com.pcagrade.order.repository.EmployeeRepository;
 import com.pcagrade.order.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,21 +1,49 @@
 package com.pcagrade.order.controller;
 
 import com.pcagrade.order.dto.DashboardStats;
+import com.pcagrade.order.service.CommandeService;
 import com.pcagrade.order.service.DashboardService;
+import com.pcagrade.order.service.EmployeService;
+import com.pcagrade.order.service.PlanificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/dashboard")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class DashboardController {
 
     @Autowired
-    private DashboardService dashboardService;
+    private CommandeService commandeService;
 
-    @GetMapping("/stats")
-    public ResponseEntity<DashboardStats> getDashboardStats() {
-        return ResponseEntity.ok(dashboardService.getDashboardStats());
+    @Autowired
+    private EmployeService employeService;
+
+    @Autowired
+    private PlanificationService planificationService;
+
+    @GetMapping("/overview")
+    public ResponseEntity<Map<String, Object>> getDashboardOverview() {
+        Map<String, Object> overview = new HashMap<>();
+
+        // Statistiques des commandes
+        Map<String, Object> commandesStats = new HashMap<>();
+        commandesStats.put("enAttente", commandeService.getNombreCommandesEnAttente());
+        commandesStats.put("enCours", commandeService.getNombreCommandesEnCours());
+        commandesStats.put("terminees", commandeService.getNombreCommandesTerminees());
+        commandesStats.put("enRetard", commandeService.getCommandesEnRetard().size());
+
+        overview.put("commandes", commandesStats);
+
+        // Statistiques des employés
+        Map<String, Object> employesStats = new HashMap<>();
+        employesStats.put("total", employeService.getTousEmployes().size());
+        employesStats.put("actifs", employeService.getEmployesActifs().size());
+
+
     }
 }

@@ -1,8 +1,6 @@
 package com.pcagrade.order.dto;
 
 
-import com.pcagrade.order.entity.OrderStatus;
-import com.pcagrade.order.entity.PriorityLevel;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
