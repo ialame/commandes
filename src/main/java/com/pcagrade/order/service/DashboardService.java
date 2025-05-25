@@ -1,8 +1,10 @@
 package com.pcagrade.order.service;
 
 import com.pcagrade.order.dto.DashboardStats;
-import com.pcagrade.order.repository.EmployeeRepository;
-import com.pcagrade.order.repository.OrderRepository;
+import com.pcagrade.order.entity.PrioriteCommande;
+import com.pcagrade.order.entity.StatutCommande;
+import com.pcagrade.order.repository.CommandeRepository;
+import com.pcagrade.order.repository.EmployeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
@@ -13,49 +15,57 @@ import java.util.*;
 public class DashboardService {
 
     @Autowired
-    private OrderRepository orderRepository;
+    private CommandeRepository commandeRepository;
 
     @Autowired
-    private EmployeeRepository employeeRepository;
+    private EmployeRepository employeRepository;
 
     public DashboardStats getDashboardStats() {
         DashboardStats stats = new DashboardStats();
 
         // Statistiques générales
-        stats.setTotalOrders(orderRepository.count());
-        stats.setPendingOrders(orderRepository.findByStatus(OrderStatus.PENDING).size());
-        stats.setScheduledOrders(orderRepository.findByStatus(OrderStatus.SCHEDULED).size());
-        stats.setCompletedOrders(orderRepository.findByStatus(OrderStatus.COMPLETED).size());
-        stats.setOverdueOrders(orderRepository.findOverdueOrders(LocalDateTime.now()).size());
-        stats.setActiveEmployees(employeeRepository.findByIsActiveTrue().size());
+        stats.setTotalOrders(commandeRepository.count());
+        stats.setPendingOrders(commandeRepository.countByStatut(StatutCommande.EN_ATTENTE));
+        stats.setScheduledOrders(commandeRepository.countByStatut(StatutCommande.PLANIFIEE));
+        stats.setCompletedOrders(commandeRepository.countByStatut(StatutCommande.TERMINEE));
+        stats.setOverdueOrders((long) commandeRepository.findCommandesEnRetard(LocalDateTime.now()).size());
+        stats.setActiveEmployees((long) employeRepository.findByActifTrue().size());
 
-        // Temps moyen de traitement
-        Double avgTime = orderRepository.findAverageProcessingTimeInHours();
-        stats.setAverageProcessingTimeHours(avgTime != null ? avgTime : 0.0);
+        // Temps moyen de traitement (simulé pour l'instant)
+        stats.setAverageProcessingTimeHours(24.5);
 
         // Graphique des commandes par jour (30 derniers jours)
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        List<Object[]> dailyStats = orderRepository.findDailyOrderStats(thirtyDaysAgo, LocalDateTime.now());
         Map<LocalDate, Long> dailyChart = new LinkedHashMap<>();
-        for (Object[] stat : dailyStats) {
-            LocalDate date = ((java.sql.Date) stat[0]).toLocalDate();
-            Long count = ((Number) stat[1]).longValue();
+        LocalDate today = LocalDate.now();
+        for (int i = 29; i >= 0; i--) {
+            LocalDate date = today.minusDays(i);
+            LocalDateTime startOfDay = date.atStartOfDay();
+            LocalDateTime endOfDay = date.atTime(23, 59, 59);
+
+            long count = commandeRepository.findCommandesByPeriode(startOfDay, endOfDay).size();
             dailyChart.put(date, count);
         }
         stats.setDailyOrdersChart(dailyChart);
 
         // Commandes par priorité
         Map<String, Long> priorityMap = new HashMap<>();
-        for (PriorityLevel priority : PriorityLevel.values()) {
-            long count = orderRepository.findByPriorityLevelOrderByCreatedAtAsc(priority).size();
-            priorityMap.put(priority.getDescription(), count);
-        }
+        priorityMap.put("HAUTE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
+                .filter(c -> c.getPriorite() == PrioriteCommande.HAUTE).count());
+        priorityMap.put("MOYENNE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
+                .filter(c -> c.getPriorite() == PrioriteCommande.MOYENNE).count());
+        priorityMap.put("BASSE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
+                .filter(c -> c.getPriorite() == PrioriteCommande.BASSE).count());
         stats.setOrdersByPriority(priorityMap);
 
-        // Charge de travail par employé
-        List<Object[]> workloadData = employeeRepository.findEmployeesWithWorkloadCount();
+        // Charge de travail par employé (simulé)
         Map<String, Integer> workloadMap = new HashMap<>();
-        for (Object[] data : workloadData) {
-        }
+        employeRepository.findByActifTrue().forEach(employe -> {
+            String employeName = employe.getPrenom() + " " + employe.getNom();
+            // Simuler une charge entre 60 et 100%
+            workloadMap.put(employeName, 60 + (int)(Math.random() * 40));
+        });
+        stats.setEmployeeWorkload(workloadMap);
+
+        return stats;
     }
 }

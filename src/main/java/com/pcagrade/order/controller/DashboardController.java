@@ -26,6 +26,15 @@ public class DashboardController {
     @Autowired
     private PlanificationService planificationService;
 
+    @Autowired
+    private DashboardService dashboardService;
+
+    @GetMapping("/stats")
+    public ResponseEntity<DashboardStats> getDashboardStats() {
+        DashboardStats stats = dashboardService.getDashboardStats();
+        return ResponseEntity.ok(stats);
+    }
+
     @GetMapping("/overview")
     public ResponseEntity<Map<String, Object>> getDashboardOverview() {
         Map<String, Object> overview = new HashMap<>();
@@ -44,6 +53,16 @@ public class DashboardController {
         employesStats.put("total", employeService.getTousEmployes().size());
         employesStats.put("actifs", employeService.getEmployesActifs().size());
 
+        overview.put("employes", employesStats);
 
+        // Charge de travail cette semaine
+        LocalDate today = LocalDate.now();
+        LocalDate startOfWeek = today.minusDays(today.getDayOfWeek().getValue() - 1);
+        LocalDate endOfWeek = startOfWeek.plusDays(6);
+
+        Map<String, Object> chargeStats = planificationService.getChargeParEmploye(startOfWeek, endOfWeek);
+        overview.put("chargeTravail", chargeStats);
+
+        return ResponseEntity.ok(overview);
     }
 }

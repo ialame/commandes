@@ -1,51 +1,59 @@
 package com.pcagrade.order.dto;
 
-import java.util.Map;
 import java.time.LocalDate;
+import java.util.Map;
 
 public class DashboardStats {
-    private long totalOrders;
-    private long pendingOrders;
-    private long scheduledOrders;
-    private long completedOrders;
-    private long overdueOrders;
-    private int activeEmployees;
-    private double averageProcessingTimeHours;
+    private Long totalOrders;
+    private Long pendingOrders;
+    private Long scheduledOrders;
+    private Long completedOrders;
+    private Long overdueOrders;
+    private Long activeEmployees;
+    private Double averageProcessingTimeHours;
     private Map<LocalDate, Long> dailyOrdersChart;
     private Map<String, Long> ordersByPriority;
     private Map<String, Integer> employeeWorkload;
 
-    // Constructeurs
+    // Constructeur par défaut
     public DashboardStats() {}
 
-    // Getters et setters
-    public long getTotalOrders() { return totalOrders; }
-    public void setTotalOrders(long totalOrders) { this.totalOrders = totalOrders; }
+    // Getters et Setters
+    public Long getTotalOrders() { return totalOrders; }
+    public void setTotalOrders(Long totalOrders) { this.totalOrders = totalOrders; }
 
-    public long getPendingOrders() { return pendingOrders; }
-    public void setPendingOrders(long pendingOrders) { this.pendingOrders = pendingOrders; }
+    public Long getPendingOrders() { return pendingOrders; }
+    public void setPendingOrders(Long pendingOrders) { this.pendingOrders = pendingOrders; }
 
-    public long getScheduledOrders() { return scheduledOrders; }
-    public void setScheduledOrders(long scheduledOrders) { this.scheduledOrders = scheduledOrders; }
+    public Long getScheduledOrders() { return scheduledOrders; }
+    public void setScheduledOrders(Long scheduledOrders) { this.scheduledOrders = scheduledOrders; }
 
-    public long getCompletedOrders() { return completedOrders; }
-    public void setCompletedOrders(long completedOrders) { this.completedOrders = completedOrders; }
+    public Long getCompletedOrders() { return completedOrders; }
+    public void setCompletedOrders(Long completedOrders) { this.completedOrders = completedOrders; }
 
-    public long getOverdueOrders() { return overdueOrders; }
-    public void setOverdueOrders(long overdueOrders) { this.overdueOrders = overdueOrders; }
+    public Long getOverdueOrders() { return overdueOrders; }
+    public void setOverdueOrders(Long overdueOrders) { this.overdueOrders = overdueOrders; }
 
-    public int getActiveEmployees() { return activeEmployees; }
-    public void setActiveEmployees(int activeEmployees) { this.activeEmployees = activeEmployees; }
+    public Long getActiveEmployees() { return activeEmployees; }
+    public void setActiveEmployees(Long activeEmployees) { this.activeEmployees = activeEmployees; }
 
-    public double getAverageProcessingTimeHours() { return averageProcessingTimeHours; }
-    public void setAverageProcessingTimeHours(double averageProcessingTimeHours) { this.averageProcessingTimeHours = averageProcessingTimeHours; }
+    public Double getAverageProcessingTimeHours() { return averageProcessingTimeHours; }
+    public void setAverageProcessingTimeHours(Double averageProcessingTimeHours) {
+        this.averageProcessingTimeHours = averageProcessingTimeHours;
+    }
 
     public Map<LocalDate, Long> getDailyOrdersChart() { return dailyOrdersChart; }
-    public void setDailyOrdersChart(Map<LocalDate, Long> dailyOrdersChart) { this.dailyOrdersChart = dailyOrdersChart; }
+    public void setDailyOrdersChart(Map<LocalDate, Long> dailyOrdersChart) {
+        this.dailyOrdersChart = dailyOrdersChart;
+    }
 
     public Map<String, Long> getOrdersByPriority() { return ordersByPriority; }
-    public void setOrdersByPriority(Map<String, Long> ordersByPriority) { this.ordersByPriority = ordersByPriority; }
+    public void setOrdersByPriority(Map<String, Long> ordersByPriority) {
+        this.ordersByPriority = ordersByPriority;
+    }
 
     public Map<String, Integer> getEmployeeWorkload() { return employeeWorkload; }
-    public void setEmployeeWorkload(Map<String, Integer> employeeWorkload) { this.employeeWorkload = employeeWorkload; }
+    public void setEmployeeWorkload(Map<String, Integer> employeeWorkload) {
+        this.employeeWorkload = employeeWorkload;
+    }
 }
