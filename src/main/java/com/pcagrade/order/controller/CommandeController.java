@@ -1,6 +1,7 @@
 package com.pcagrade.order.controller;
 
 
+import com.pcagrade.order.dto.CommandeDTO;
 import com.pcagrade.order.entity.Commande;
 import com.pcagrade.order.service.CommandeService;
 import com.pcagrade.order.service.EmployeService;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/commandes")
@@ -22,11 +24,25 @@ public class CommandeController {
     private CommandeService commandeService;
 
     @GetMapping
-    public ResponseEntity<List<Commande>> getToutesCommandes() {
+    public ResponseEntity<List<CommandeDTO>> getToutesCommandes() {
         List<Commande> commandes = commandeService.getToutesCommandes();
-        return ResponseEntity.ok(commandes);
-    }
 
+        List<CommandeDTO> commandeDTOs = commandes.stream()
+                .map(c -> new CommandeDTO(
+                        c.getId(),
+                        c.getNumeroCommande(),
+                        c.getNombreCartes(),
+                        c.getPrixTotal(),
+                        c.getPriorite().toString(),
+                        c.getStatut().toString(),
+                        c.getDateCreation(),
+                        c.getDateLimite(),
+                        c.getTempsEstimeMinutes()
+                ))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(commandeDTOs);
+    }
     @GetMapping("/{id}")
     public ResponseEntity<Commande> getCommandeById(@PathVariable Long id) {
         try {
@@ -86,6 +102,27 @@ public class CommandeController {
         stats.put("enCours", commandeService.getNombreCommandesEnCours());
         stats.put("terminees", commandeService.getNombreCommandesTerminees());
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/simple")
+    public ResponseEntity<List<Map<String, Object>>> getCommandesSimple() {
+        List<Commande> commandes = commandeService.getToutesCommandes();
+
+        List<Map<String, Object>> result = commandes.stream().map(c -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", c.getId());
+            map.put("numeroCommande", c.getNumeroCommande());
+            map.put("nombreCartes", c.getNombreCartes());
+            map.put("prixTotal", c.getPrixTotal());
+            map.put("priorite", c.getPriorite());
+            map.put("statut", c.getStatut());
+            map.put("dateCreation", c.getDateCreation());
+            map.put("dateLimite", c.getDateLimite());
+            map.put("tempsEstimeMinutes", c.getTempsEstimeMinutes());
+            return map;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 }
 

@@ -24,6 +24,11 @@ public interface PlanificationRepository extends JpaRepository<Planification, Lo
     @Query("SELECT SUM(p.dureeMinutes) FROM Planification p WHERE p.employe.id = :employeId AND p.datePlanifiee = :date")
     Integer getTotalMinutesParEmployeEtDate(@Param("employeId") Long employeId, @Param("date") LocalDate date);
 
-    @Query("SELECT p FROM Planification p WHERE p.datePlanifiee BETWEEN :debut AND :fin ORDER BY p.datePlanifiee, p.employe.nom")
-    List<Planification> findPlanificationsByPeriode(@Param("debut") LocalDate debut, @Param("fin") LocalDate fin);
+    @Query("SELECT p FROM Planification p " +
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.employe " +
+            "WHERE p.datePlanifiee BETWEEN :debut AND :fin " +
+            "ORDER BY p.datePlanifiee, p.employe.nom")
+    List<Planification> findPlanificationsByPeriode(@Param("debut") LocalDate debut,
+                                                    @Param("fin") LocalDate fin);
 }

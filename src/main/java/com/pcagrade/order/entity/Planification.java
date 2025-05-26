@@ -2,6 +2,7 @@ package com.pcagrade.order.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -13,13 +14,15 @@ public class Planification {
     private Long id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // CHANGEZ DE LAZY à EAGER
     @JoinColumn(name = "commande_id", nullable = false)
+    @JsonBackReference("commande-planifications") // AJOUT
     private Commande commande;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER) // CHANGEZ DE LAZY à EAGER
     @JoinColumn(name = "employe_id", nullable = false)
+    @JsonBackReference("employe-planifications") // AJOUT
     private Employe employe;
 
     @NotNull
@@ -28,7 +31,7 @@ public class Planification {
 
     @NotNull
     @Column(name = "heure_debut", nullable = false)
-    private Integer heureDebut; // Heure de début (0-23)
+    private Integer heureDebut;
 
     @NotNull
     @Column(name = "duree_minutes", nullable = false)
@@ -52,7 +55,7 @@ public class Planification {
         this.dureeMinutes = dureeMinutes;
     }
 
-    // Getters et Setters
+    // Getters et Setters (identiques)
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

@@ -1,5 +1,6 @@
 package com.pcagrade.order.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -35,6 +36,7 @@ public class Employe {
     private LocalDateTime dateCreation = LocalDateTime.now();
 
     @OneToMany(mappedBy = "employe", cascade = CascadeType.ALL)
+    @JsonIgnore // AJOUTEZ CETTE ANNOTATION
     private List<Planification> planifications;
 
     // Constructeurs

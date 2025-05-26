@@ -64,7 +64,15 @@ public class PlanificationService {
     }
 
     public List<Planification> getPlanificationsByPeriode(LocalDate debut, LocalDate fin) {
-        return planificationRepository.findPlanificationsByPeriode(debut, fin);
+        List<Planification> planifications = planificationRepository.findPlanificationsByPeriode(debut, fin);
+
+        // Forcer le chargement des relations
+        planifications.forEach(p -> {
+            p.getCommande().getNumeroCommande(); // Force le chargement
+            p.getEmploye().getNom(); // Force le chargement
+        });
+
+        return planifications;
     }
 
     // Méthode pour obtenir la charge de travail par employé et date
