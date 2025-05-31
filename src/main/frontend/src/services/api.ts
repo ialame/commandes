@@ -3,7 +3,7 @@ const API_BASE_URL = 'http://localhost:8080/api'
 
 // Types TypeScript
 export interface Commande {
-  id?: number
+  id?: string  // Changé de number à string pour ULID
   numeroCommande: string
   nombreCartes: number
   prixTotal: number

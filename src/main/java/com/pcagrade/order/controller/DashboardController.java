@@ -1,9 +1,9 @@
 package com.pcagrade.order.controller;
 
 import com.pcagrade.order.dto.DashboardStats;
-import com.pcagrade.order.service.CommandeService;
 import com.pcagrade.order.service.DashboardService;
 import com.pcagrade.order.service.EmployeService;
+import com.pcagrade.order.service.OrderService;
 import com.pcagrade.order.service.PlanificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ import java.util.HashMap;
 public class DashboardController {
 
     @Autowired
-    private CommandeService commandeService;
+    private OrderService commandeService;
 
     @Autowired
     private EmployeService employeService;

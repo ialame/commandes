@@ -2,6 +2,7 @@ package com.pcagrade.order.service;
 
 import com.pcagrade.order.entity.Employe;
 import com.pcagrade.order.repository.EmployeRepository;
+import com.pcagrade.order.ulid.Ulid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +30,14 @@ public class EmployeService {
         return employeRepository.findEmployesActifsOrdonnes();
     }
 
-    public Employe getEmployeById(Long id) {
+    public Employe getEmployeById(Ulid id) {
         return employeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employé non trouvé"));
+    }
+
+    public Employe getEmployeById(String idString) {
+        Ulid id = Ulid.fromString(idString);
+        return getEmployeById(id);
     }
 
     public Employe modifierEmploye(Employe employe) {
@@ -44,9 +50,14 @@ public class EmployeService {
         return employeRepository.save(existant);
     }
 
-    public void desactiverEmploye(Long id) {
+    public void desactiverEmploye(Ulid id) {
         Employe employe = getEmployeById(id);
         employe.setActif(false);
         employeRepository.save(employe);
     }
+
+    public void desactiverEmploye(String idString) {
+        desactiverEmploye(Ulid.fromString(idString));
+    }
+
 }

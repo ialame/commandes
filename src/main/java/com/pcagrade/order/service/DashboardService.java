@@ -1,21 +1,22 @@
 package com.pcagrade.order.service;
 
 import com.pcagrade.order.dto.DashboardStats;
-import com.pcagrade.order.entity.PrioriteCommande;
-import com.pcagrade.order.entity.StatutCommande;
-import com.pcagrade.order.repository.CommandeRepository;
 import com.pcagrade.order.repository.EmployeRepository;
+import com.pcagrade.order.repository.OrderRepository;
+import com.pcagrade.order.entity.Order;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
 public class DashboardService {
 
     @Autowired
-    private CommandeRepository commandeRepository;
+    private OrderRepository orderRepository;
 
     @Autowired
     private EmployeRepository employeRepository;
@@ -24,11 +25,11 @@ public class DashboardService {
         DashboardStats stats = new DashboardStats();
 
         // Statistiques générales
-        stats.setTotalOrders(commandeRepository.count());
-        stats.setPendingOrders(commandeRepository.countByStatut(StatutCommande.EN_ATTENTE));
-        stats.setScheduledOrders(commandeRepository.countByStatut(StatutCommande.PLANIFIEE));
-        stats.setCompletedOrders(commandeRepository.countByStatut(StatutCommande.TERMINEE));
-        stats.setOverdueOrders((long) commandeRepository.findCommandesEnRetard(LocalDateTime.now()).size());
+        stats.setTotalOrders(orderRepository.count());
+        stats.setPendingOrders(orderRepository.countByStatut(0));      // ✅ 0 = EN_ATTENTE
+        stats.setScheduledOrders(orderRepository.countByStatut(1));    // ✅ 1 = PLANIFIEE
+        stats.setCompletedOrders(orderRepository.countByStatut(2));    // ✅ 2 = TERMINEE
+        stats.setOverdueOrders((long) orderRepository.findCommandesEnRetard(Instant.now()).size()); // ✅ Instant au lieu de LocalDateTime
         stats.setActiveEmployees((long) employeRepository.findByActifTrue().size());
 
         // Temps moyen de traitement (simulé pour l'instant)
@@ -39,22 +40,26 @@ public class DashboardService {
         LocalDate today = LocalDate.now();
         for (int i = 29; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.atTime(23, 59, 59);
 
-            long count = commandeRepository.findCommandesByPeriode(startOfDay, endOfDay).size();
+            // Convertir LocalDateTime en Instant pour Order
+            Instant startOfDay = date.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant();
+            Instant endOfDay = date.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
+
+            long count = orderRepository.findCommandesByPeriode(startOfDay, endOfDay).size();
             dailyChart.put(date, count);
         }
         stats.setDailyOrdersChart(dailyChart);
 
-        // Commandes par priorité
+        // Commandes par priorité (basé sur les champs Order)
         Map<String, Long> priorityMap = new HashMap<>();
-        priorityMap.put("HAUTE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
-                .filter(c -> c.getPriorite() == PrioriteCommande.HAUTE).count());
-        priorityMap.put("MOYENNE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
-                .filter(c -> c.getPriorite() == PrioriteCommande.MOYENNE).count());
-        priorityMap.put("BASSE", commandeRepository.findByStatut(StatutCommande.EN_ATTENTE).stream()
-                .filter(c -> c.getPriorite() == PrioriteCommande.BASSE).count());
+        List<Order> ordersEnAttente = orderRepository.findByStatus(0); // Orders en attente
+
+        priorityMap.put("HAUTE", ordersEnAttente.stream()
+                .filter(o -> "HAUTE".equals(o.getPrioriteString())).count());
+        priorityMap.put("MOYENNE", ordersEnAttente.stream()
+                .filter(o -> "MOYENNE".equals(o.getPrioriteString())).count());
+        priorityMap.put("BASSE", ordersEnAttente.stream()
+                .filter(o -> "BASSE".equals(o.getPrioriteString())).count());
         stats.setOrdersByPriority(priorityMap);
 
         // Charge de travail par employé (simulé)

@@ -1,82 +1,173 @@
 package com.pcagrade.order.entity;
 
+import com.pcagrade.order.ulid.Ulid;
+import com.pcagrade.order.ulid.UlidType;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import org.hibernate.annotations.Type;
+
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "planifications")
-public class Planification {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Planification extends AbstractUlidEntity {
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.EAGER) // CHANGEZ DE LAZY à EAGER
-    @JoinColumn(name = "commande_id", nullable = false)
-    @JsonBackReference("commande-planifications") // AJOUT
-    private Commande commande;
+    // Stocker les ULID directement
+    @Column(name = "order_id", nullable = false)
+    @Type(UlidType.class)
+    private Ulid orderId;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.EAGER) // CHANGEZ DE LAZY à EAGER
-    @JoinColumn(name = "employe_id", nullable = false)
-    @JsonBackReference("employe-planifications") // AJOUT
+    @Column(name = "employe_id", nullable = false)
+    @Type(UlidType.class)
+    private Ulid employeId;
+
+    // Relations optionnelles
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", insertable = false, updatable = false)
+    private Order order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employe_id", insertable = false, updatable = false)
     private Employe employe;
 
-    @NotNull
+    // Champs de planification
     @Column(name = "date_planifiee", nullable = false)
     private LocalDate datePlanifiee;
 
-    @NotNull
     @Column(name = "heure_debut", nullable = false)
-    private Integer heureDebut;
+    private LocalTime heureDebut;
 
-    @NotNull
     @Column(name = "duree_minutes", nullable = false)
     private Integer dureeMinutes;
 
-    @Column(name = "date_creation")
-    private LocalDateTime dateCreation = LocalDateTime.now();
-
-    @Column(name = "terminee")
+    @Column(name = "terminee", nullable = false)
     private Boolean terminee = false;
 
     // Constructeurs
-    public Planification() {}
+    public Planification() {
+        super();
+        this.terminee = false;
+    }
 
-    public Planification(Commande commande, Employe employe, LocalDate datePlanifiee,
-                         Integer heureDebut, Integer dureeMinutes) {
-        this.commande = commande;
+    public Planification(Order order, Employe employe, LocalDate datePlanifiee,
+                         LocalTime heureDebut, Integer dureeMinutes) {
+        super();
+        this.order = order;
         this.employe = employe;
+        this.orderId = order != null ? order.getId() : null;
+        this.employeId = employe != null ? employe.getId() : null;
         this.datePlanifiee = datePlanifiee;
         this.heureDebut = heureDebut;
         this.dureeMinutes = dureeMinutes;
+        this.terminee = false;
     }
 
-    // Getters et Setters (identiques)
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    // Constructeur avec ULID directs (pour AlgorithmePlanificationService)
+    public Planification(Ulid orderId, Ulid employeId, LocalDate datePlanifiee,
+                         LocalTime heureDebut, Integer dureeMinutes) {
+        super();
+        this.orderId = orderId;
+        this.employeId = employeId;
+        this.datePlanifiee = datePlanifiee;
+        this.heureDebut = heureDebut;
+        this.dureeMinutes = dureeMinutes;
+        this.terminee = false;
+    }
 
-    public Commande getCommande() { return commande; }
-    public void setCommande(Commande commande) { this.commande = commande; }
+    // === GETTERS ET SETTERS ===
 
-    public Employe getEmploye() { return employe; }
-    public void setEmploye(Employe employe) { this.employe = employe; }
+    public Ulid getOrderId() {
+        return orderId;
+    }
 
-    public LocalDate getDatePlanifiee() { return datePlanifiee; }
-    public void setDatePlanifiee(LocalDate datePlanifiee) { this.datePlanifiee = datePlanifiee; }
+    public void setOrderId(Ulid orderId) {
+        this.orderId = orderId;
+    }
 
-    public Integer getHeureDebut() { return heureDebut; }
-    public void setHeureDebut(Integer heureDebut) { this.heureDebut = heureDebut; }
+    public Ulid getEmployeId() {
+        return employeId;
+    }
 
-    public Integer getDureeMinutes() { return dureeMinutes; }
-    public void setDureeMinutes(Integer dureeMinutes) { this.dureeMinutes = dureeMinutes; }
+    public void setEmployeId(Ulid employeId) {
+        this.employeId = employeId;
+    }
 
-    public LocalDateTime getDateCreation() { return dateCreation; }
-    public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
+    public Order getOrder() {
+        return order;
+    }
 
-    public Boolean getTerminee() { return terminee; }
-    public void setTerminee(Boolean terminee) { this.terminee = terminee; }
+    public void setOrder(Order order) {
+        this.order = order;
+        this.orderId = order != null ? order.getId() : null;
+    }
+
+    public Employe getEmploye() {
+        return employe;
+    }
+
+    public void setEmploye(Employe employe) {
+        this.employe = employe;
+        this.employeId = employe != null ? employe.getId() : null;
+    }
+
+    public LocalDate getDatePlanifiee() {
+        return datePlanifiee;
+    }
+
+    public void setDatePlanifiee(LocalDate datePlanifiee) {
+        this.datePlanifiee = datePlanifiee;
+    }
+
+    public LocalTime getHeureDebut() {
+        return heureDebut;
+    }
+
+    public void setHeureDebut(LocalTime heureDebut) {
+        this.heureDebut = heureDebut;
+    }
+
+    public Integer getDureeMinutes() {
+        return dureeMinutes;
+    }
+
+    public void setDureeMinutes(Integer dureeMinutes) {
+        this.dureeMinutes = dureeMinutes;
+    }
+
+    public Boolean getTerminee() {
+        return terminee;
+    }
+
+    public void setTerminee(Boolean terminee) {
+        this.terminee = terminee;
+    }
+
+    // === MÉTHODES UTILITAIRES ===
+
+    public boolean isTerminee() {
+        return Boolean.TRUE.equals(terminee);
+    }
+
+    public void marquerTerminee() {
+        this.terminee = true;
+    }
+
+    public LocalTime getHeureFin() {
+        return heureDebut != null && dureeMinutes != null
+                ? heureDebut.plusMinutes(dureeMinutes)
+                : null;
+    }
+
+    @Override
+    public String toString() {
+        return "Planification{" +
+                "id=" + getIdAsString() +
+                ", orderId=" + (orderId != null ? orderId.toString() : "null") +
+                ", employeId=" + (employeId != null ? employeId.toString() : "null") +
+                ", datePlanifiee=" + datePlanifiee +
+                ", heureDebut=" + heureDebut +
+                ", dureeMinutes=" + dureeMinutes +
+                ", terminee=" + terminee +
+                '}';
+    }
 }

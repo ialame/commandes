@@ -1,18 +1,15 @@
 package com.pcagrade.order.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "employes")
-public class Employe {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Employe extends AbstractUlidEntity {
 
     @NotBlank
     @Column(nullable = false)
@@ -32,26 +29,35 @@ public class Employe {
     @Column(name = "actif", nullable = false)
     private Boolean actif = true;
 
-    @Column(name = "date_creation")
-    private LocalDateTime dateCreation = LocalDateTime.now();
+    // SUPPRIMÉ: dateCreation est déjà défini dans AbstractUlidEntity
+    // @Column(name = "date_creation")
+    // private LocalDateTime dateCreation = LocalDateTime.now();
 
     @OneToMany(mappedBy = "employe", cascade = CascadeType.ALL)
-    @JsonIgnore // AJOUTEZ CETTE ANNOTATION
+    @JsonIgnore
     private List<Planification> planifications;
 
     // Constructeurs
-    public Employe() {}
+    public Employe() {
+        super(); // Génère automatiquement un ULID et définit dateCreation
+    }
 
     public Employe(String nom, String prenom, String email) {
+        super(); // Génère automatiquement un ULID et définit dateCreation
+        this.nom = nom;
+        this.prenom = prenom;
+        this.email = email;
+    }
+
+    // Constructeur avec ULID existant (pour migration)
+    public Employe(String idString, String nom, String prenom, String email) {
+        super(idString);
         this.nom = nom;
         this.prenom = prenom;
         this.email = email;
     }
 
     // Getters et Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
     public String getNom() { return nom; }
     public void setNom(String nom) { this.nom = nom; }
 
@@ -69,11 +75,33 @@ public class Employe {
     public Boolean getActif() { return actif; }
     public void setActif(Boolean actif) { this.actif = actif; }
 
-    public LocalDateTime getDateCreation() { return dateCreation; }
-    public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
+    // dateCreation est hérité de AbstractUlidEntity
+    // public LocalDateTime getDateCreation() { return dateCreation; }
+    // public void setDateCreation(LocalDateTime dateCreation) { this.dateCreation = dateCreation; }
 
     public List<Planification> getPlanifications() { return planifications; }
     public void setPlanifications(List<Planification> planifications) {
         this.planifications = planifications;
+    }
+
+    // Méthodes utilitaires
+    public boolean isActif() {
+        return Boolean.TRUE.equals(actif);
+    }
+
+    public String getNomComplet() {
+        return prenom + " " + nom;
+    }
+
+    @Override
+    public String toString() {
+        return "Employe{" +
+                "id=" + getIdAsString() +
+                ", nom='" + nom + '\'' +
+                ", prenom='" + prenom + '\'' +
+                ", email='" + email + '\'' +
+                ", actif=" + actif +
+                ", heuresTravailParJour=" + heuresTravailParJour +
+                '}';
     }
 }

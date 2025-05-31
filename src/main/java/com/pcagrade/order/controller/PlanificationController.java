@@ -1,9 +1,13 @@
 package com.pcagrade.order.controller;// PlanificationController.java
 
+import com.pcagrade.order.entity.Employe;
+import com.pcagrade.order.entity.Order;
 import com.pcagrade.order.entity.Planification;
 import com.pcagrade.order.service.AlgorithmePlanificationService;
-import com.pcagrade.order.service.CommandeService;
+import com.pcagrade.order.service.EmployeService;
+import com.pcagrade.order.service.OrderService;
 import com.pcagrade.order.service.PlanificationService;
+import com.pcagrade.order.ulid.Ulid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +26,11 @@ import java.util.stream.Collectors;
 public class PlanificationController {
 
     @Autowired
-    private com.pcagrade.order.service.PlanificationService planificationService;
-
+    private PlanificationService planificationService;
+    @Autowired
+    private EmployeService employeService;
+    @Autowired
+    private OrderService orderService;
     @Autowired
     private AlgorithmePlanificationService algorithmePlanificationService;
 
@@ -36,10 +43,12 @@ public class PlanificationController {
 
     @GetMapping("/employe/{employeId}")
     public ResponseEntity<List<Planification>> getPlanificationsByEmploye(
-            @PathVariable Long employeId,
+            @PathVariable Ulid employeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate debut,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fin) {
-        List<Planification> planifications = planificationService.getPlanificationsByEmployeEtPeriode(employeId, debut, fin);
+        Ulid employeUlid = Ulid.fromString(employeId.toString());
+        List<Planification> planifications =planificationService.getPlanificationsByEmployeEtPeriode(employeUlid, debut, fin);
+
         return ResponseEntity.ok(planifications);
     }
 
@@ -53,40 +62,44 @@ public class PlanificationController {
 
             List<Map<String, Object>> result = planifications.stream().map(p -> {
                 Map<String, Object> map = new HashMap<>();
-                map.put("id", p.getId());
+                map.put("id", p.getId().toString());                    // ✅ Convertir ULID en String
                 map.put("datePlanifiee", p.getDatePlanifiee());
                 map.put("heureDebut", p.getHeureDebut());
                 map.put("dureeMinutes", p.getDureeMinutes());
                 map.put("terminee", p.getTerminee());
 
-                // Commande avec vérification
-                Map<String, Object> commande = new HashMap<>();
-                if (p.getCommande() != null) {
-                    commande.put("id", p.getCommande().getId());
-                    commande.put("numeroCommande", p.getCommande().getNumeroCommande());
-                    commande.put("nombreCartes", p.getCommande().getNombreCartes());
-                    commande.put("prixTotal", p.getCommande().getPrixTotal());
-                    commande.put("priorite", p.getCommande().getPriorite().toString());
+                // Order avec vérification ✅
+                Map<String, Object> order = new HashMap<>();
+                if (p.getOrder() != null) {
+                    order.put("id", p.getOrderId().toString());
+                    order.put("numeroCommande", p.getOrder().getNumCommande());
+                    order.put("nombreCartes", p.getOrder().getNbDescellements() != null ? p.getOrder().getNbDescellements() : 0);
+                    order.put("status", p.getOrder().getStatus());
+                    order.put("delai", p.getOrder().getDelai());
+                    order.put("retard", p.getOrder().getRetard());
+                    order.put("reference", p.getOrder().getReference());
                 } else {
-                    // Données par défaut si commande manquante
-                    commande.put("id", 0);
-                    commande.put("numeroCommande", "Commande inconnue");
-                    commande.put("nombreCartes", 0);
-                    commande.put("prixTotal", 0.0);
-                    commande.put("priorite", "BASSE");
+                    // Données par défaut si order manquant
+                    order.put("id", "");
+                    order.put("numeroCommande", "Order inconnue");
+                    order.put("nombreCartes", 0);
+                    order.put("status", 0);
+                    order.put("delai", "");
+                    order.put("retard", false);
+                    order.put("reference", "");
                 }
-                map.put("commande", commande);
+                map.put("order", order);  // ✅ "order" au lieu de "commande"
 
-                // Employé avec vérification
+                // Employé avec vérification (inchangé)
                 Map<String, Object> employe = new HashMap<>();
                 if (p.getEmploye() != null) {
-                    employe.put("id", p.getEmploye().getId());
+                    employe.put("id", p.getEmploye().getId().toString());  // ✅ Convertir ULID en String
                     employe.put("nom", p.getEmploye().getNom());
                     employe.put("prenom", p.getEmploye().getPrenom());
                     employe.put("email", p.getEmploye().getEmail());
                 } else {
                     // Données par défaut si employé manquant
-                    employe.put("id", 0);
+                    employe.put("id", "");
                     employe.put("nom", "Employé");
                     employe.put("prenom", "Inconnu");
                     employe.put("email", "inconnu@example.com");
@@ -96,14 +109,14 @@ public class PlanificationController {
                 return map;
             }).collect(Collectors.toList());
 
-            // Log pour debug
+            // Log pour debug (adapté)
             System.out.println("Nombre de planifications trouvées: " + result.size());
             result.forEach(r -> {
                 Map<String, Object> emp = (Map<String, Object>) r.get("employe");
-                Map<String, Object> cmd = (Map<String, Object>) r.get("commande");
+                Map<String, Object> ord = (Map<String, Object>) r.get("order");  // ✅ "order" au lieu de "commande"
                 System.out.println("Planification: " + r.get("id") +
                         " - Employé: " + emp.get("prenom") + " " + emp.get("nom") +
-                        " - Commande: " + cmd.get("numeroCommande"));
+                        " - Order: " + ord.get("numeroCommande"));
             });
 
             return ResponseEntity.ok(result);
@@ -125,7 +138,7 @@ public class PlanificationController {
     }
 
     @PutMapping("/{id}/terminer")
-    public ResponseEntity<String> terminerPlanification(@PathVariable Long id) {
+    public ResponseEntity<String> terminerPlanification(@PathVariable Ulid id) {
         try {
             planificationService.marquerPlanificationTerminee(id);
             return ResponseEntity.ok("Planification terminée");
@@ -152,5 +165,67 @@ public class PlanificationController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    @PostMapping("/test-planification")
+    public ResponseEntity<Map<String, Object>> testPlanification() {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // Tester l'accès aux employés
+            List<Employe> employes = employeService.getTousEmployes();
+            result.put("nombreEmployes", employes.size());
+            result.put("employesActifs", employeService.getEmployesActifs().size());
+
+            // Tester l'accès aux commandes
+            List<Order> ordersATraiter = orderService.getOrdersATraiter();
+            result.put("commandesATraiter", ordersATraiter.size());
+
+            result.put("status", "OK");
+
+        } catch (Exception e) {
+            result.put("status", "ERREUR");
+            result.put("erreur", e.getMessage());
+            result.put("stackTrace", e.getClass().getSimpleName());
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/test-simple")
+    public ResponseEntity<Map<String, Object>> testSimple() {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            System.out.println("🔥 Test simple démarré");
+
+            List<Order> orders = orderService.getOrdersATraiter();
+            List<Employe> employes = employeService.getEmployesActifs();
+
+            result.put("commandesTrouvees", orders.size());
+            result.put("employesTrouves", employes.size());
+            result.put("status", "OK");
+
+            // Test d'une commande
+            if (!orders.isEmpty()) {
+                Order premiere = orders.get(0);
+                result.put("premiereCommande", Map.of(
+                        "numero", premiere.getNumCommande(),
+                        "dateLimite", premiere.getDateLimite().toString(),
+                        "tempsEstime", premiere.getTempsEstimeMinutes()
+                ));
+            }
+
+            System.out.println("✅ Test simple réussi");
+
+        } catch (Exception e) {
+            System.err.println("❌ Erreur test simple: " + e.getMessage());
+            e.printStackTrace();
+            result.put("status", "ERREUR");
+            result.put("erreur", e.getMessage());
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
 }
 

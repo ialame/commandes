@@ -1,14 +1,16 @@
 package com.pcagrade.order.service;
 
-import com.pcagrade.order.entity.Commande;
+import com.pcagrade.order.entity.Order;
 import com.pcagrade.order.entity.Employe;
 import com.pcagrade.order.entity.Planification;
 import com.pcagrade.order.entity.StatutCommande;
+import com.pcagrade.order.ulid.Ulid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,7 +19,7 @@ import java.util.stream.Collectors;
 public class AlgorithmePlanificationService {
 
     @Autowired
-    private CommandeService commandeService;
+    private OrderService orderService;
 
     @Autowired
     private EmployeService employeService;
@@ -30,7 +32,7 @@ public class AlgorithmePlanificationService {
      * @return Rapport de planification
      */
     public RapportPlanification planifierCommandes() {
-        List<Commande> commandesATraiter = commandeService.getCommandesATraiter();
+        List<Order> ordersATraiter = orderService.getOrdersATraiter();
         List<Employe> employesActifs = employeService.getEmployesActifs();
 
         if (employesActifs.isEmpty()) {
@@ -38,8 +40,8 @@ public class AlgorithmePlanificationService {
         }
 
         // Trier les commandes par priorité et date limite
-        commandesATraiter.sort((c1, c2) -> {
-            int prioriteComp = c2.getPriorite().compareTo(c1.getPriorite());
+        ordersATraiter.sort((c1, c2) -> {
+            int prioriteComp = c2.getPrioriteString().compareTo(c1.getPrioriteString());
             if (prioriteComp != 0) return prioriteComp;
             return c1.getDateLimite().compareTo(c2.getDateLimite());
         });
@@ -48,23 +50,21 @@ public class AlgorithmePlanificationService {
         LocalDate dateDebut = LocalDate.now();
 
         // Créer une carte des disponibilités pour chaque employé
-        Map<Long, Map<LocalDate, Integer>> disponibilites = initialiserDisponibilites(employesActifs, dateDebut);
+        Map<Ulid, Map<LocalDate, Integer>> disponibilites = initialiserDisponibilites(employesActifs, dateDebut);
 
-        for (Commande commande : commandesATraiter) {
-            if (commande.getStatut() == StatutCommande.EN_ATTENTE) {
+        for (Order order : ordersATraiter) {
+            if (order.getStatus() == 0) { // 0 = En attente
                 try {
-                    PlanificationResult resultat = planifierCommande(commande, employesActifs, disponibilites);
+                    PlanificationResult resultat = planifierCommande(order, employesActifs, disponibilites);
                     if (resultat.isSuccess()) {
                         // Mettre à jour le statut de la commande
-                        commande.setStatut(StatutCommande.PLANIFIEE);
-                        commandeService.creerCommande(commande);
-
-                        rapport.addCommandePlanifiee(commande, resultat.getPlanifications());
+                        orderService.marquerCommePlanifie(order.getId());
+                        rapport.addCommandePlanifiee(order, resultat.getPlanifications());
                     } else {
-                        rapport.addCommandeNonPlanifiee(commande, resultat.getRaison());
+                        rapport.addCommandeNonPlanifiee(order, resultat.getRaison());
                     }
                 } catch (Exception e) {
-                    rapport.addCommandeNonPlanifiee(commande, "Erreur: " + e.getMessage());
+                    rapport.addCommandeNonPlanifiee(order, "Erreur: " + e.getMessage());
                 }
             }
         }
@@ -75,16 +75,22 @@ public class AlgorithmePlanificationService {
     /**
      * Planifie une commande spécifique
      */
-    private PlanificationResult planifierCommande(Commande commande, List<Employe> employes,
-                                                  Map<Long, Map<LocalDate, Integer>> disponibilites) {
+    private PlanificationResult planifierCommande(Order order, List<Employe> employes,
+                                                  Map<Ulid, Map<LocalDate, Integer>> disponibilites) {
 
-        int tempsNecessaire = commande.getTempsEstimeMinutes();
-        LocalDate dateLimite = commande.getDateLimite().toLocalDate();
+        int tempsNecessaire = order.getTempsEstimeMinutes();
+        LocalDate dateLimite = order.getDateLimite().toLocalDate();
         LocalDate dateDebut = LocalDate.now();
+
+        // ✅ CORRECTION : Si la date limite est dans le passé, la mettre dans le futur
+        if (dateLimite.isBefore(dateDebut)) {
+            dateLimite = dateDebut.plusMonths(1); // Planifier dans le mois qui vient
+            System.out.println("🔧 Date limite ajustée pour commande " + order.getNumCommande() + ": " + dateLimite);
+        }
 
         // Stratégie 1: Essayer de planifier sur un seul employé
         PlanificationResult resultatUnSeul = essayerPlanificationUnSeulEmploye(
-                commande, employes, disponibilites, dateDebut, dateLimite, tempsNecessaire);
+                order, employes, disponibilites, dateDebut, dateLimite, tempsNecessaire);
 
         if (resultatUnSeul.isSuccess()) {
             return resultatUnSeul;
@@ -92,14 +98,14 @@ public class AlgorithmePlanificationService {
 
         // Stratégie 2: Diviser sur plusieurs employés
         return essayerPlanificationMultipleEmployes(
-                commande, employes, disponibilites, dateDebut, dateLimite, tempsNecessaire);
+                order, employes, disponibilites, dateDebut, dateLimite, tempsNecessaire);
     }
 
     /**
      * Essaie de planifier toute la commande sur un seul employé
      */
-    private PlanificationResult essayerPlanificationUnSeulEmploye(Commande commande, List<Employe> employes,
-                                                                  Map<Long, Map<LocalDate, Integer>> disponibilites, LocalDate dateDebut,
+    private PlanificationResult essayerPlanificationUnSeulEmploye(Order commande, List<Employe> employes,
+                                                                  Map<Ulid, Map<LocalDate, Integer>> disponibilites, LocalDate dateDebut,
                                                                   LocalDate dateLimite, int tempsNecessaire) {
 
         // Trier les employés par charge de travail actuelle (moins chargé en premier)
@@ -125,8 +131,12 @@ public class AlgorithmePlanificationService {
                     int dureeSlot = Math.min(tempsRestant, creneau.getDureeDisponible());
 
                     Planification planification = new Planification(
-                            commande, employe, creneau.getDate(), creneau.getHeureDebut(), dureeSlot);
-
+                            commande.getId(),         // ✅ ULID de la commande/order
+                            employe.getId(),          // ✅ ULID de l'employé
+                            creneau.getDate(),
+                            creneau.getHeureDebutAsLocalTime(),
+                            dureeSlot
+                    );
                     planifications.add(planificationService.creerPlanification(planification));
 
                     // Mettre à jour les disponibilités
@@ -147,8 +157,8 @@ public class AlgorithmePlanificationService {
     /**
      * Essaie de diviser la commande sur plusieurs employés
      */
-    private PlanificationResult essayerPlanificationMultipleEmployes(Commande commande, List<Employe> employes,
-                                                                     Map<Long, Map<LocalDate, Integer>> disponibilites, LocalDate dateDebut,
+    private PlanificationResult essayerPlanificationMultipleEmployes(Order order, List<Employe> employes,
+                                                                     Map<Ulid, Map<LocalDate, Integer>> disponibilites, LocalDate dateDebut,
                                                                      LocalDate dateLimite, int tempsNecessaire) {
 
         List<Planification> planifications = new ArrayList<>();
@@ -182,10 +192,10 @@ public class AlgorithmePlanificationService {
             int dureeSlot = Math.min(tempsRestant, creneauEmploye.getCreneau().getDureeDisponible());
 
             Planification planification = new Planification(
-                    commande,
-                    creneauEmploye.getEmploye(),
+                    creneauEmploye.getEmploye().getId(),  // ✅ ULID
+                    order.getId(),                        // ✅ ULID
                     creneauEmploye.getCreneau().getDate(),
-                    creneauEmploye.getCreneau().getHeureDebut(),
+                    creneauEmploye.getCreneau().getHeureDebutAsLocalTime(),
                     dureeSlot
             );
 
@@ -215,8 +225,8 @@ public class AlgorithmePlanificationService {
     /**
      * Initialise les disponibilités de tous les employés
      */
-    private Map<Long, Map<LocalDate, Integer>> initialiserDisponibilites(List<Employe> employes, LocalDate dateDebut) {
-        Map<Long, Map<LocalDate, Integer>> disponibilites = new HashMap<>();
+    private Map<Ulid, Map<LocalDate, Integer>> initialiserDisponibilites(List<Employe> employes, LocalDate dateDebut) {
+        Map<Ulid, Map<LocalDate, Integer>> disponibilites = new HashMap<>();
         LocalDate dateFin = dateDebut.plusMonths(2); // Planifier sur 2 mois
 
         for (Employe employe : employes) {
@@ -274,8 +284,8 @@ public class AlgorithmePlanificationService {
     /**
      * Met à jour la disponibilité d'un employé
      */
-    private void mettreAJourDisponibilite(Long employeId, LocalDate date, int dureeUtilisee,
-                                          Map<Long, Map<LocalDate, Integer>> disponibilites) {
+    private void mettreAJourDisponibilite(Ulid employeId, LocalDate date, int dureeUtilisee,
+                                          Map<Ulid, Map<LocalDate, Integer>> disponibilites) {
         Map<LocalDate, Integer> disponibiliteEmploye = disponibilites.get(employeId);
         if (disponibiliteEmploye != null && disponibiliteEmploye.containsKey(date)) {
             int disponibiliteActuelle = disponibiliteEmploye.get(date);
@@ -286,7 +296,7 @@ public class AlgorithmePlanificationService {
     /**
      * Calcule la charge totale d'un employé sur une période
      */
-    private int calculerChargeTotale(Long employeId, Map<Long, Map<LocalDate, Integer>> disponibilites,
+    private int calculerChargeTotale(Ulid employeId, Map<Ulid, Map<LocalDate, Integer>> disponibilites,
                                      LocalDate debut, LocalDate fin) {
         Map<LocalDate, Integer> disponibiliteEmploye = disponibilites.get(employeId);
         if (disponibiliteEmploye == null) return 0;
@@ -304,12 +314,12 @@ public class AlgorithmePlanificationService {
         private List<CommandeNonPlanifiee> commandesNonPlanifiees = new ArrayList<>();
         private LocalDate dateGeneration = LocalDate.now();
 
-        public void addCommandePlanifiee(Commande commande, List<Planification> planifications) {
-            commandesPlanifiees.add(new CommandePlanifiee(commande, planifications));
+        public void addCommandePlanifiee(Order order, List<Planification> planifications) {
+            commandesPlanifiees.add(new CommandePlanifiee(order, planifications));
         }
 
-        public void addCommandeNonPlanifiee(Commande commande, String raison) {
-            commandesNonPlanifiees.add(new CommandeNonPlanifiee(commande, raison));
+        public void addCommandeNonPlanifiee(Order order, String raison) {
+            commandesNonPlanifiees.add(new CommandeNonPlanifiee(order, raison));
         }
 
         // Getters
@@ -322,28 +332,28 @@ public class AlgorithmePlanificationService {
     }
 
     public static class CommandePlanifiee {
-        private Commande commande;
+        private Order commande;
         private List<Planification> planifications;
 
-        public CommandePlanifiee(Commande commande, List<Planification> planifications) {
+        public CommandePlanifiee(Order commande, List<Planification> planifications) {
             this.commande = commande;
             this.planifications = planifications;
         }
 
-        public Commande getCommande() { return commande; }
+        public Order getCommande() { return commande; }
         public List<Planification> getPlanifications() { return planifications; }
     }
 
     public static class CommandeNonPlanifiee {
-        private Commande commande;
+        private Order commande;
         private String raison;
 
-        public CommandeNonPlanifiee(Commande commande, String raison) {
+        public CommandeNonPlanifiee(Order commande, String raison) {
             this.commande = commande;
             this.raison = raison;
         }
 
-        public Commande getCommande() { return commande; }
+        public Order getCommande() { return commande; }
         public String getRaison() { return raison; }
     }
 
@@ -365,7 +375,7 @@ public class AlgorithmePlanificationService {
 
     private static class CreneauDisponible {
         private LocalDate date;
-        private int heureDebut;
+        private int heureDebut; // Heures (ex: 9 pour 9h00)
         private int dureeDisponible;
 
         public CreneauDisponible(LocalDate date, int heureDebut, int dureeDisponible) {
@@ -375,7 +385,15 @@ public class AlgorithmePlanificationService {
         }
 
         public LocalDate getDate() { return date; }
+
+        // Retourner l'int tel quel
         public int getHeureDebut() { return heureDebut; }
+
+        // Méthode utilitaire pour convertir en LocalTime
+        public LocalTime getHeureDebutAsLocalTime() {
+            return LocalTime.of(heureDebut, 0); // heureDebut = heures, 0 = minutes
+        }
+
         public int getDureeDisponible() { return dureeDisponible; }
     }
 

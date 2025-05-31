@@ -1,13 +1,14 @@
 package com.pcagrade.order.repository;
 
 import com.pcagrade.order.entity.Employe;
+import com.pcagrade.order.ulid.Ulid;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface EmployeRepository extends JpaRepository<Employe, Long> {
+public interface EmployeRepository extends JpaRepository<Employe, Ulid> {
 
     List<Employe> findByActifTrue();
 
@@ -16,4 +17,3 @@ public interface EmployeRepository extends JpaRepository<Employe, Long> {
 
     boolean existsByEmail(String email);
 }
-

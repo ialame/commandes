@@ -1,9 +1,10 @@
 package com.pcagrade.order.service;
 
-
 import com.pcagrade.order.entity.Employe;
 import com.pcagrade.order.entity.Planification;
+import com.pcagrade.order.repository.EmployeRepository;
 import com.pcagrade.order.repository.PlanificationRepository;
+import com.pcagrade.order.ulid.Ulid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,32 +22,49 @@ public class PlanificationService {
     PlanificationRepository planificationRepository;
 
     @Autowired
-    private CommandeService commandeService;
+    private OrderService orderService;
 
     @Autowired
     private EmployeService employeService;
+    @Autowired
+    private EmployeRepository employeRepository;
 
     public List<Planification> getPlanificationsByDate(LocalDate date) {
         return planificationRepository.findByDatePlanifiee(date);
     }
 
-    public List<Planification> getPlanificationsByEmployeEtPeriode(Long employeId, LocalDate debut, LocalDate fin) {
+    public List<Planification> getPlanificationsByEmployeEtPeriode(Ulid employeId, LocalDate debut, LocalDate fin) {
         return planificationRepository.findByEmployeAndPeriode(employeId, debut, fin);
     }
 
-    public Integer getChargeEmployeParJour(Long employeId, LocalDate date) {
+    public List<Planification> getPlanificationsByEmployeEtPeriode(String employeIdString, LocalDate debut, LocalDate fin) {
+        Ulid employeId = Ulid.fromString(employeIdString);
+        return getPlanificationsByEmployeEtPeriode(employeId, debut, fin);
+    }
+
+    public Integer getChargeEmployeParJour(Ulid employeId, LocalDate date) {
         Integer totalMinutes = planificationRepository.getTotalMinutesParEmployeEtDate(employeId, date);
         return totalMinutes != null ? totalMinutes : 0;
+    }
+
+    public Integer getChargeEmployeParJour(String employeIdString, LocalDate date) {
+        Ulid employeId = Ulid.fromString(employeIdString);
+        return getChargeEmployeParJour(employeId, date);
     }
 
     public Planification creerPlanification(Planification planification) {
         // Vérifier que l'employé n'est pas surchargé
         Integer chargeActuelle = getChargeEmployeParJour(
-                planification.getEmploye().getId(),
+                planification.getEmployeId(),  // ✅ Utiliser getEmployeId() au lieu de getEmploye().getId()
                 planification.getDatePlanifiee()
         );
 
-        Employe employe = planification.getEmploye();
+        // Récupérer l'employé par son ID
+        Employe employe = employeRepository.findById(planification.getEmployeId()).orElse(null);  // ✅ Charger l'employé explicitement
+        if (employe == null) {
+            throw new RuntimeException("Employé introuvable avec ID: " + planification.getEmployeId());
+        }
+
         int capaciteJournaliere = employe.getHeuresTravailParJour() * 60; // en minutes
 
         if (chargeActuelle + planification.getDureeMinutes() > capaciteJournaliere) {
@@ -56,23 +74,20 @@ public class PlanificationService {
         return planificationRepository.save(planification);
     }
 
-    public void marquerPlanificationTerminee(Long planificationId) {
+    public void marquerPlanificationTerminee(Ulid planificationId) {
         Planification planification = planificationRepository.findById(planificationId)
                 .orElseThrow(() -> new RuntimeException("Planification non trouvée"));
         planification.setTerminee(true);
         planificationRepository.save(planification);
     }
 
+    public void marquerPlanificationTerminee(String planificationIdString) {
+        Ulid planificationId = Ulid.fromString(planificationIdString);
+        marquerPlanificationTerminee(planificationId);
+    }
+
     public List<Planification> getPlanificationsByPeriode(LocalDate debut, LocalDate fin) {
-        List<Planification> planifications = planificationRepository.findPlanificationsByPeriode(debut, fin);
-
-        // Forcer le chargement des relations
-        planifications.forEach(p -> {
-            p.getCommande().getNumeroCommande(); // Force le chargement
-            p.getEmploye().getNom(); // Force le chargement
-        });
-
-        return planifications;
+        return planificationRepository.findPlanificationsByPeriode(debut, fin);
     }
 
     // Méthode pour obtenir la charge de travail par employé et date
