@@ -1,76 +1,72 @@
 package com.pcagrade.order.service;
 
-import com.pcagrade.order.dto.DashboardStats;
-import com.pcagrade.order.repository.EmployeRepository;
-import com.pcagrade.order.repository.OrderRepository;
-import com.pcagrade.order.entity.Order;
+import com.pcagrade.order.repository.CommandeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
-import java.time.LocalDate;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class DashboardService {
 
     @Autowired
-    private OrderRepository orderRepository;
+    private CommandeRepository commandeRepository;
 
-    @Autowired
-    private EmployeRepository employeRepository;
+    /**
+     * ✅ MÉTHODE MANQUANTE - getDashboardStats()
+     */
+    public Map<String, Object> getDashboardStats() {
+        Map<String, Object> stats = new HashMap<>();
 
-    public DashboardStats getDashboardStats() {
-        DashboardStats stats = new DashboardStats();
+        try {
+            // Statistiques des commandes
+            stats.put("commandesEnAttente", commandeRepository.countByStatus(1));
+            stats.put("commandesEnCours", commandeRepository.countByStatus(2));
+            stats.put("commandesTerminees", commandeRepository.countByStatus(3));
+            stats.put("totalCommandes", commandeRepository.count());
 
-        // Statistiques générales
-        stats.setTotalOrders(orderRepository.count());
-        stats.setPendingOrders(orderRepository.countByStatut(0));      // ✅ 0 = EN_ATTENTE
-        stats.setScheduledOrders(orderRepository.countByStatut(1));    // ✅ 1 = PLANIFIEE
-        stats.setCompletedOrders(orderRepository.countByStatut(2));    // ✅ 2 = TERMINEE
-        stats.setOverdueOrders((long) orderRepository.findCommandesEnRetard(Instant.now()).size()); // ✅ Instant au lieu de LocalDateTime
-        stats.setActiveEmployees((long) employeRepository.findByActifTrue().size());
+            // Commandes du mois
+            LocalDateTime debutMois = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime finMois = LocalDateTime.now();
+            stats.put("commandesDuMois",
+                    commandeRepository.findCommandesByPeriode(debutMois, finMois).size());
 
-        // Temps moyen de traitement (simulé pour l'instant)
-        stats.setAverageProcessingTimeHours(24.5);
+            // Commandes récentes (7 derniers jours)
+            LocalDateTime depuisUneSemaine = LocalDateTime.now().minusDays(7);
+            stats.put("commandesRecentes",
+                    commandeRepository.findCommandesRecentes(depuisUneSemaine).size());
 
-        // Graphique des commandes par jour (30 derniers jours)
-        Map<LocalDate, Long> dailyChart = new LinkedHashMap<>();
-        LocalDate today = LocalDate.now();
-        for (int i = 29; i >= 0; i--) {
-            LocalDate date = today.minusDays(i);
+            // Commandes en retard
+            stats.put("commandesEnRetard", commandeRepository.findDelayedOrders().size());
 
-            // Convertir LocalDateTime en Instant pour Order
-            Instant startOfDay = date.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant();
-            Instant endOfDay = date.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant();
+            stats.put("status", "success");
+            stats.put("timestamp", LocalDateTime.now());
 
-            long count = orderRepository.findCommandesByPeriode(startOfDay, endOfDay).size();
-            dailyChart.put(date, count);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur récupération stats dashboard: " + e.getMessage());
+            stats.put("status", "error");
+            stats.put("error", e.getMessage());
         }
-        stats.setDailyOrdersChart(dailyChart);
-
-        // Commandes par priorité (basé sur les champs Order)
-        Map<String, Long> priorityMap = new HashMap<>();
-        List<Order> ordersEnAttente = orderRepository.findByStatus(0); // Orders en attente
-
-        priorityMap.put("HAUTE", ordersEnAttente.stream()
-                .filter(o -> "HAUTE".equals(o.getPrioriteString())).count());
-        priorityMap.put("MOYENNE", ordersEnAttente.stream()
-                .filter(o -> "MOYENNE".equals(o.getPrioriteString())).count());
-        priorityMap.put("BASSE", ordersEnAttente.stream()
-                .filter(o -> "BASSE".equals(o.getPrioriteString())).count());
-        stats.setOrdersByPriority(priorityMap);
-
-        // Charge de travail par employé (simulé)
-        Map<String, Integer> workloadMap = new HashMap<>();
-        employeRepository.findByActifTrue().forEach(employe -> {
-            String employeName = employe.getPrenom() + " " + employe.getNom();
-            // Simuler une charge entre 60 et 100%
-            workloadMap.put(employeName, 60 + (int)(Math.random() * 40));
-        });
-        stats.setEmployeeWorkload(workloadMap);
 
         return stats;
+    }
+
+    /**
+     * Version alternative si vous avez des problèmes avec les autres repositories
+     */
+    public Map<String, Object> getStatsCommandes() {
+        Map<String, Object> stats = new HashMap<>();
+
+        stats.put("enAttente", commandeRepository.countByStatus(1));
+        stats.put("enCours", commandeRepository.countByStatus(2));
+        stats.put("terminees", commandeRepository.countByStatus(3));
+        stats.put("total", commandeRepository.count());
+
+        return stats;
+    }
+
+    public long getNombreCommandesTotal() {
+        return commandeRepository.count(); // Ça marche
     }
 }

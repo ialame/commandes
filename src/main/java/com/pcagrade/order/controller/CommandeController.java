@@ -1,19 +1,20 @@
 package com.pcagrade.order.controller;
 
-import com.pcagrade.order.entity.Order;
-import com.pcagrade.order.service.OrderService;
+import com.github.f4b6a3.ulid.Ulid;
+import com.pcagrade.order.entity.Commande;
+import com.pcagrade.order.repository.CommandeRepository;
+import com.pcagrade.order.service.CommandeService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/commandes")
@@ -21,184 +22,114 @@ import java.util.stream.Collectors;
 public class CommandeController {
 
     @Autowired
-    private OrderService orderService;
+    private EntityManager entityManager;
 
+    @Autowired
+    private CommandeService commandeService;
+    @Autowired
+    private CommandeRepository commandeRepository;
+
+    // Endpoint principal - avec date par défaut (1er mai 2025)
     @GetMapping
-    public ResponseEntity<List<Map<String, Object>>> getToutesCommandes(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate depuis) {
-
-        // Si vos commandes sont en 2024 par exemple
-        if (depuis == null) {
-            depuis = LocalDate.of(2024, 1, 1);  // Ajustez selon vos données réelles
-        }
-
-        // Convertir LocalDate en LocalDateTime (début de journée)
-        LocalDateTime depuisDateTime = depuis.atStartOfDay();
-
-        // Récupérer les commandes filtrées par date
-        List<Order> commandes = orderService.getCommandesDepuis(depuisDateTime);
-
-        // Conversion en Map pour éviter les problèmes de sérialisation ULID
-        List<Map<String, Object>> result = commandes.stream().map(c -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", c.getIdAsString()); // Utilise la méthode de BaseEntity
-            map.put("numeroCommande", c.getNumeroCommande());
-            map.put("nombreCartes", c.getNombreCartes());
-            map.put("prixTotal", c.getPrixTotal());
-            map.put("priorite", c.getPriorite().toString());
-            map.put("statut", c.getStatut().toString());
-            map.put("dateCreation", c.getDateCreation());
-            map.put("dateLimite", c.getDateLimite());
-            map.put("dateDebutTraitement", c.getDateDebutTraitement());
-            map.put("dateFinTraitement", c.getDateFinTraitement());
-            map.put("tempsEstimeMinutes", c.getTempsEstimeMinutes());
-            return map;
-        }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(result);
-    }
-    @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getCommandeById(@PathVariable String id) {
+    public ResponseEntity<List<Map<String, Object>>> getCommandes() {
         try {
-            Order commande = orderService.getCommandeById(id);
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("id", commande.getIdAsString());
-            result.put("numeroCommande", commande.getNumeroCommande());
-            result.put("nombreCartes", commande.getNombreCartes());
-            result.put("prixTotal", commande.getPrixTotal());
-            result.put("priorite", commande.getPriorite().toString());
-            result.put("statut", commande.getStatut().toString());
-            result.put("dateCreation", commande.getDateCreation());
-            result.put("dateLimite", commande.getDateLimite());
-            result.put("dateDebutTraitement", commande.getDateDebutTraitement());
-            result.put("dateFinTraitement", commande.getDateFinTraitement());
-            result.put("tempsEstimeMinutes", commande.getTempsEstimeMinutes());
-
-            return ResponseEntity.ok(result);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            List<Map<String, Object>> commandes = commandeService.getCommandesAPlanifierDepuisDate(1, 5, 2025);
+            return ResponseEntity.ok(commandes);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur récupération commandes: " + e.getMessage());
+            return ResponseEntity.status(500).body(new ArrayList<>());
         }
     }
 
-    @PostMapping
-    public ResponseEntity<Map<String, Object>> creerCommande(@Valid @RequestBody Map<String, Object> commandeData) {
+    // Endpoint avec date paramétrable
+    @GetMapping("/depuis")
+    public ResponseEntity<List<Map<String, Object>>> getCommandesDepuisDate(
+            @RequestParam int jour,
+            @RequestParam int mois,
+            @RequestParam int annee) {
         try {
-            // Créer une nouvelle commande à partir des données reçues
-            Order commande = new Order();
-            commande.setNumeroCommande((String) commandeData.get("numeroCommande"));
-            commande.setNombreCartes((Integer) commandeData.get("nombreCartes"));
+            List<Map<String, Object>> commandes = commandeService.getCommandesAPlanifierDepuisDate(jour, mois, annee);
+            return ResponseEntity.ok(commandes);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ArrayList<>());
+        }
+    }
 
-            // Gestion du prix (peut être Number ou String)
-            Object prixObj = commandeData.get("prixTotal");
-            if (prixObj instanceof Number) {
-                commande.setPrixTotal(new java.math.BigDecimal(prixObj.toString()));
-            } else if (prixObj instanceof String) {
-                commande.setPrixTotal(new java.math.BigDecimal((String) prixObj));
+    // Endpoint avec période (entre deux dates)
+    @GetMapping("/periode")
+    public ResponseEntity<List<Map<String, Object>>> getCommandesPeriode(
+            @RequestParam int jourDebut,
+            @RequestParam int moisDebut,
+            @RequestParam int anneeDebut,
+            @RequestParam int jourFin,
+            @RequestParam int moisFin,
+            @RequestParam int anneeFin) {
+        try {
+            List<Map<String, Object>> commandes = commandeService.getCommandesPeriode(
+                    jourDebut, moisDebut, anneeDebut,
+                    jourFin, moisFin, anneeFin
+            );
+            return ResponseEntity.ok(commandes);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ArrayList<>());
+        }
+    }
+
+    // Statistiques depuis une date
+    @GetMapping("/stats/depuis")
+    public ResponseEntity<Map<String, Object>> getStatsDepuisDate(
+            @RequestParam int jour,
+            @RequestParam int mois,
+            @RequestParam int annee) {
+        try {
+            LocalDateTime dateDebut = LocalDateTime.of(annee, mois, jour, 0, 0, 0);
+
+            Query query = entityManager.createNativeQuery(
+                    "SELECT " +
+                            "  COUNT(*) as total, " +
+                            "  SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as en_attente, " +
+                            "  SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) as en_cours, " +
+                            "  SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) as terminees, " +
+                            "  SUM(CASE WHEN delai = 'X' THEN 1 ELSE 0 END) as urgentes, " +
+                            "  SUM(CASE WHEN employe_id IS NULL THEN 1 ELSE 0 END) as non_assignees " +
+                            "FROM commandes_db.`order` " +
+                            "WHERE date >= ?"
+            );
+
+            query.setParameter(1, dateDebut);
+            Object[] result = (Object[]) query.getSingleResult();
+
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("total", result[0]);
+            stats.put("enAttente", result[1]);
+            stats.put("enCours", result[2]);
+            stats.put("terminees", result[3]);
+            stats.put("urgentes", result[4]);
+            stats.put("nonAssignees", result[5]);
+            stats.put("dateDebut", jour + "/" + mois + "/" + annee);
+
+            return ResponseEntity.ok(stats);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+    @GetMapping("/{commandeId}/cartes")
+    public ResponseEntity<Map<String, Object>> getCartesCommande(@PathVariable String commandeId) {
+        try {
+            Commande commande = commandeRepository.findById(Ulid.from(commandeId)).orElse(null);
+            if (commande == null) {
+                return ResponseEntity.notFound().build();
             }
 
-            Order nouvelleCommande = orderService.creerCommande(commande);
-
-            // Retourner la réponse avec l'ID en string
             Map<String, Object> result = new HashMap<>();
-            result.put("id", nouvelleCommande.getIdAsString());
-            result.put("numeroCommande", nouvelleCommande.getNumeroCommande());
-            result.put("nombreCartes", nouvelleCommande.getNombreCartes());
-            result.put("prixTotal", nouvelleCommande.getPrixTotal());
-            result.put("priorite", nouvelleCommande.getPriorite().toString());
-            result.put("statut", nouvelleCommande.getStatut().toString());
-            result.put("dateCreation", nouvelleCommande.getDateCreation());
-            result.put("dateLimite", nouvelleCommande.getDateLimite());
-            result.put("tempsEstimeMinutes", nouvelleCommande.getTempsEstimeMinutes());
+            result.put("nombreCartes", commande.getNombreCartes());
+            result.put("nomsCartes", commande.getNomsCartes());
+            result.put("resumeCartes", commande.getResumerCartes());
 
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-    }
-
-    @GetMapping("/a-traiter")
-    public ResponseEntity<List<Map<String, Object>>> getCommandesATraiter() {
-        List<Order> commandes = orderService.getCommandesATraiter();
-
-        List<Map<String, Object>> result = commandes.stream().map(c -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", c.getIdAsString());
-            map.put("numeroCommande", c.getNumeroCommande());
-            map.put("nombreCartes", c.getNombreCartes());
-            map.put("prixTotal", c.getPrixTotal());
-            map.put("priorite", c.getPriorite().toString());
-            map.put("statut", c.getStatut().toString());
-            map.put("dateCreation", c.getDateCreation());
-            map.put("dateLimite", c.getDateLimite());
-            map.put("tempsEstimeMinutes", c.getTempsEstimeMinutes());
-            return map;
-        }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(result);
-    }
-
-    @GetMapping("/en-retard")
-    public ResponseEntity<List<Map<String, Object>>> getCommandesEnRetard() {
-        List<Order> commandes = orderService.getCommandesEnRetard();
-
-        List<Map<String, Object>> result = commandes.stream().map(c -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", c.getIdAsString());
-            map.put("numeroCommande", c.getNumeroCommande());
-            map.put("nombreCartes", c.getNombreCartes());
-            map.put("prixTotal", c.getPrixTotal());
-            map.put("priorite", c.getPriorite().toString());
-            map.put("statut", c.getStatut().toString());
-            map.put("dateCreation", c.getDateCreation());
-            map.put("dateLimite", c.getDateLimite());
-            map.put("tempsEstimeMinutes", c.getTempsEstimeMinutes());
-            return map;
-        }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(result);
-    }
-
-    @PutMapping("/{id}/commencer")
-    public ResponseEntity<String> commencerCommande(@PathVariable String id) {
-        try {
-            orderService.marquerCommandeCommencee(id);
-            return ResponseEntity.ok("Commande commencée");
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PutMapping("/{id}/terminer")
-    public ResponseEntity<String> terminerCommande(@PathVariable String id) {
-        try {
-            orderService.marquerCommandeTerminee(id);
-            return ResponseEntity.ok("Commande terminée");
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @GetMapping("/statistiques")
-    public ResponseEntity<Map<String, Object>> getStatistiques() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("enAttente", orderService.getNombreCommandesEnAttente());
-        stats.put("enCours", orderService.getNombreCommandesEnCours());
-        stats.put("terminees", orderService.getNombreCommandesTerminees());
-        return ResponseEntity.ok(stats);
-    }
-
-    // Endpoint de test pour les ULIDs
-    @GetMapping("/test-ulid")
-    public ResponseEntity<Map<String, Object>> testUlid() {
-        Order commande = new Order();
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("ulidString", commande.getIdAsString());
-        //result.put("timestamp", commande.getCreationTimestamp());
-        //result.put("instant", commande.getCreationInstant().toString());
-        result.put("now", java.time.Instant.now().toString());
-
-        return ResponseEntity.ok(result);
     }
 }

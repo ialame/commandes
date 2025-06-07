@@ -1,0 +1,17 @@
+# ========== application-local.properties.example ==========
+# Créez ce fichier pour documenter la configuration locale
+# (ce fichier PEUT être commité car il ne contient pas de secrets)
+
+# Copiez ce fichier vers application-local.properties et ajustez vos valeurs
+
+# Base de données locale
+spring.datasource.url=jdbc:mariadb://localhost:3306/VOTRE_DB_DEV
+spring.datasource.username=VOTRE_USERNAME
+spring.datasource.password=VOTRE_PASSWORD
+
+# Configuration debug
+ulid.debug=true
+spring.jpa.show-sql=true
+
+# Ports et configurations spécifiques
+server.port=8080

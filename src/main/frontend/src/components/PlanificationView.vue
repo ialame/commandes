@@ -11,12 +11,21 @@
         >
           🤖 Planification Auto
         </button>
+
         <button
           @click="rafraichirDonnees"
           :disabled="loading"
           class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
+
           {{ loading ? '🔄 Chargement...' : '🔄 Actualiser' }}
+        </button>
+        <!-- Dans la section des boutons (ligne ~18) -->
+        <button
+          @click="viderPlanifications"
+          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+        >
+          🗑️ Vider planifications
         </button>
       </div>
     </div>
@@ -73,7 +82,7 @@
         <div v-if="planificationsGroupees.length > 0" class="space-y-6">
           <div
             v-for="groupe in planificationsGroupees"
-            :key="groupe.date"
+            :key="groupe.planifications.date"
             class="border border-gray-200 rounded-lg overflow-hidden"
           >
             <div class="bg-gray-50 px-6 py-3 border-b border-gray-200">
@@ -215,6 +224,34 @@ const periode = ref({
   debut: new Date().toISOString().split('T')[0],
   fin: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 })
+
+
+const viderPlanifications = async () => {
+  if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer TOUTES les planifications ?')) {
+    return;
+  }
+
+  loading.value = true;
+  try {
+    const result = await apiService.viderPlanifications();
+
+    if (result.success) {
+      showNotification?.(
+        `${result.planificationsSupprimees} planifications supprimées`,
+        'success'
+      );
+      // Recharger les données
+      await chargerPlanifications();
+    } else {
+      showNotification?.('Erreur lors de la suppression', 'error');
+    }
+  } catch (error) {
+    console.error('Erreur:', error);
+    showNotification?.('Erreur lors de la suppression', 'error');
+  } finally {
+    loading.value = false;
+  }
+}
 
 // Injection de la fonction de notification
 const showNotification = inject('showNotification') as (message: string, type?: 'success' | 'error') => void

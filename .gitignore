@@ -1,14 +1,46 @@
-HELP.md
+# ========== .gitignore RECOMMANDÉ ==========
+
+# Fichiers de configuration locale (NE PAS COMMITTER)
+application-local.properties
+application-dev.properties
+*-local.properties
+*-dev.properties
+
+# Fichiers de configuration sensible
+application-prod.properties
+application-staging.properties
+*.env
+.env
+.env.local
+.env.production
+
+# Logs et bases de données locales
+logs/
+*.log
+*.db
+*.h2.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Build
 target/
+build/
+out/
+
+HELP.md
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
 ### STS ###
 .apt_generated
-.classpath
 .factorypath
-.project
 .settings
 .springBeans
 .sts4-cache
@@ -16,7 +48,6 @@ target/
 ### IntelliJ IDEA ###
 .idea
 *.iws
-*.iml
 *.ipr
 
 ### NetBeans ###
@@ -25,9 +56,9 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
+
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+
+

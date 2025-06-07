@@ -1,0 +1,49 @@
+# ========== Docker Compose pour développement ==========
+# docker-compose.dev.yml
+
+version: '3.8'
+services:
+  mariadb:
+    image: mariadb:10.9
+    container_name: pcagrade-db-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: pcagrade_dev
+      MYSQL_USER: ia
+      MYSQL_PASSWORD: foufafou
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_dev_data:/var/lib/mysql
+      - ./sql/init:/docker-entrypoint-initdb.d
+    networks:
+      - pcagrade-network
+
+  app:
+    build: .
+    container_name: pcagrade-app-dev
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:mariadb://mariadb:3306/pcagrade_dev
+      DB_USERNAME: dev_user
+      DB_PASSWORD: dev_password
+      ULID_DEBUG: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+    networks:
+      - pcagrade-network
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  mariadb_dev_data:
+
+networks:
+  pcagrade-network:
+    driver: bridge
+
+# Commandes Docker:
+# docker-compose -f docker-compose.dev.yml up -d
+# docker-compose -f docker-compose.dev.yml down

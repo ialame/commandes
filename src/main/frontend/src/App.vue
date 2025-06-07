@@ -51,7 +51,22 @@
     >
       {{ notification.message }}
     </div>
+
+    <div v-if="showPlanning">
+      <EmployeeScheduleDashboard />
+    </div>
+
+    <!-- Bouton pour afficher/masquer -->
+    <button
+      @click="showPlanning = !showPlanning"
+      class="bg-blue-600 text-white px-4 py-2 rounded"
+    >
+      {{ showPlanning ? 'Masquer' : 'Afficher' }} Planning
+    </button>
   </div>
+
+
+
 </template>
 
 <script setup lang="ts">
@@ -93,6 +108,12 @@ const showNotification = (message: string, type: 'success' | 'error' = 'success'
 // Provide pour les composants enfants
 provide('showNotification', showNotification)
 provide('changeTab', changeTab) // Ajout pour les composants enfants
+
+//import { ref } from 'vue'
+import EmployeeScheduleDashboard from './components/EmployeeScheduleDashboard.vue'
+
+const showPlanning = ref(false)
+
 </script>
 
 <style>

@@ -155,6 +155,26 @@ class ApiService {
   async getDashboardStats(): Promise<DashboardStats> {
     return this.request<DashboardStats>('/dashboard/stats')
   }
+
+  // Dans ApiService
+  async getCartesCommande(commandeId: string) {
+    return this.request<{
+      nombreCartes: number;
+      nomsCartes: string[];
+      resumeCartes: Record<string, number>;
+    }>(`/commandes/${commandeId}/cartes`);
+  }
+
+  // Dans la classe ApiService
+  async viderPlanifications() {
+    return this.request<{
+      success: boolean;
+      message: string;
+      planificationsSupprimees: number;
+    }>('/planifications/vider', {
+      method: 'DELETE'
+    });
+  }
 }
 
 export const apiService = new ApiService()

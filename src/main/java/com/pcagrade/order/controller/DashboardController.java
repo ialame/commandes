@@ -1,16 +1,11 @@
 package com.pcagrade.order.controller;
 
-import com.pcagrade.order.dto.DashboardStats;
+import com.pcagrade.order.service.CommandeService;
 import com.pcagrade.order.service.DashboardService;
-import com.pcagrade.order.service.EmployeService;
-import com.pcagrade.order.service.OrderService;
-import com.pcagrade.order.service.PlanificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.time.LocalDate;
 import java.util.Map;
-import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -18,51 +13,90 @@ import java.util.HashMap;
 public class DashboardController {
 
     @Autowired
-    private OrderService commandeService;
-
-    @Autowired
-    private EmployeService employeService;
-
-    @Autowired
-    private PlanificationService planificationService;
-
-    @Autowired
     private DashboardService dashboardService;
 
+    @Autowired
+    private CommandeService commandeService;
+
+    /**
+     * ✅ CORRIGÉ - Retourne Map<String, Object> au lieu de DashboardStats
+     */
     @GetMapping("/stats")
-    public ResponseEntity<DashboardStats> getDashboardStats() {
-        DashboardStats stats = dashboardService.getDashboardStats();
-        return ResponseEntity.ok(stats);
+    public ResponseEntity<Map<String, Object>> getDashboardStats() {
+        try {
+            Map<String, Object> stats = dashboardService.getDashboardStats();  // ✅ Retourne déjà une Map
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            System.err.println("❌ Erreur dashboard: " + e.getMessage());
+            e.printStackTrace();
+
+            // Retourner un objet d'erreur au lieu de null
+            Map<String, Object> errorResponse = Map.of(
+                    "status", "error",
+                    "error", e.getMessage(),
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 
-    @GetMapping("/overview")
-    public ResponseEntity<Map<String, Object>> getDashboardOverview() {
-        Map<String, Object> overview = new HashMap<>();
+    /**
+     * Statistiques simplifiées des commandes
+     */
+    @GetMapping("/commandes")
+    public ResponseEntity<Map<String, Object>> getStatsCommandes() {
+        try {
+            Map<String, Object> stats = Map.of(
+                    "enAttente", commandeService.getNombreCommandesEnAttente(),
+                    "enCours", commandeService.getNombreCommandesEnCours(),
+                    "terminees", commandeService.getNombreCommandesTerminees(),
+                    "status", "success"
+            );
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = Map.of(
+                    "status", "error",
+                    "error", e.getMessage()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
 
-        // Statistiques des commandes
-        Map<String, Object> commandesStats = new HashMap<>();
-        commandesStats.put("enAttente", commandeService.getNombreCommandesEnAttente());
-        commandesStats.put("enCours", commandeService.getNombreCommandesEnCours());
-        commandesStats.put("terminees", commandeService.getNombreCommandesTerminees());
-        commandesStats.put("enRetard", commandeService.getCommandesEnRetard().size());
+    /**
+     * Test de connectivité
+     */
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, Object>> test() {
+        Map<String, Object> response = Map.of(
+                "status", "OK",
+                "message", "Dashboard API is working",
+                "timestamp", System.currentTimeMillis()
+        );
+        return ResponseEntity.ok(response);
+    }
 
-        overview.put("commandes", commandesStats);
-
-        // Statistiques des employés
-        Map<String, Object> employesStats = new HashMap<>();
-        employesStats.put("total", employeService.getTousEmployes().size());
-        employesStats.put("actifs", employeService.getEmployesActifs().size());
-
-        overview.put("employes", employesStats);
-
-        // Charge de travail cette semaine
-        LocalDate today = LocalDate.now();
-        LocalDate startOfWeek = today.minusDays(today.getDayOfWeek().getValue() - 1);
-        LocalDate endOfWeek = startOfWeek.plusDays(6);
-
-        Map<String, Object> chargeStats = planificationService.getChargeParEmploye(startOfWeek, endOfWeek);
-        overview.put("chargeTravail", chargeStats);
-
-        return ResponseEntity.ok(overview);
+    /**
+     * Version simplifiée du dashboard sans DTO
+     */
+    @GetMapping("/simple")
+    public ResponseEntity<Map<String, Object>> getSimpleStats() {
+        try {
+            Map<String, Object> stats = Map.of(
+                    "commandesEnAttente", commandeService.getNombreCommandesEnAttente(),
+                    "commandesEnCours", commandeService.getNombreCommandesEnCours(),
+                    "commandesTerminees", commandeService.getNombreCommandesTerminees(),
+                    "totalCommandes", commandeService.getToutesCommandes().size(),
+                    "status", "success",
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = Map.of(
+                    "status", "error",
+                    "error", e.getMessage(),
+                    "timestamp", System.currentTimeMillis()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
     }
 }
