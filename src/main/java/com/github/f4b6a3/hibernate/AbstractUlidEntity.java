@@ -3,23 +3,17 @@ package com.github.f4b6a3.hibernate;
 import com.github.f4b6a3.ulid.Ulid;
 import com.github.f4b6a3.ulid.UlidCreator;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import org.hibernate.annotations.Type;
 
-/**
- * Classe de base pour les entités utilisant des ULID
- *
- * Stockage : UUID en base (BINARY(16))
- * Utilisation : ULID en Java
- * Conversion automatique via UlidToUuidConverter
- */
 @MappedSuperclass
 public abstract class AbstractUlidEntity {
 
     @Id
     @Column(columnDefinition = "BINARY(16)")
-    @Convert(converter = UlidToUuidConverter.class)
+    @Type(UlidType.class)  // ✅ Utiliser le type Hibernate personnalisé
+    // @Convert(converter = UlidToUuidConverter.class)  // ❌ Supprimer cette ligne
     private Ulid id = UlidCreator.getUlid();
 
     public AbstractUlidEntity() {

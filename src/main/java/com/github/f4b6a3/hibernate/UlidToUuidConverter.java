@@ -11,7 +11,7 @@ import java.util.UUID;
  * Permet d'utiliser des ULID dans le code Java tout en stockant
  * des UUID dans la base de données pour la compatibilité.
  */
-@Converter(autoApply = true)
+@Converter(autoApply = false)
 public class UlidToUuidConverter implements AttributeConverter<Ulid, UUID> {
 
     @Override
